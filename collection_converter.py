@@ -20,11 +20,17 @@ class CardCollection(object):
 
     def __init__(self, **kwargs):
         self.verbose = kwargs.get('verbose', 0)
-        self.cards = []
+        self.cards = {}
 
     # TODO handle merging
     def set_cards(self, cards):
-        self.cards = cards
+        if not isinstance(cards, dict):
+            raise Exception("cards must be dict")
+
+        if len(self.cards) > 0:
+            return
+        else:
+            self.cards = cards
 
     def read(self, filename):
         if self.verbose > 2:
@@ -54,18 +60,19 @@ class ScryGlassCollection(CardCollection):
             if self.verbose > 2:
                 print row
 
-            c = Card(gatherer_id=row[5], name=row[1], card_number=row[3], set_name=row[2], set_code=row[4], count=row[0])
-            self.cards.append(c)
+            gatherer_id = row[5]
+            c = Card(gatherer_id=gatherer_id, name=row[1], card_number=row[3], set_name=row[2], set_code=row[4], count=row[0])
+            self.cards[gatherer_id] = c
 
         if self.verbose > 1:
-            for card in self.cards:
+            for gid, card in self.cards.iteritems():
                 print card
 
     def serialize(self, file):
         writer = csv.writer(file)
         writer.writerow(["Count", "Name", "Edition", "Card Number", "Set Code", "ID"])
 
-        for card in self.cards:
+        for gid, card in self.cards.iteritems():
             writer.writerow([card.count, card.name, card.set_name, card.card_number, card.set_code, card.gatherer_id])
 
 
@@ -78,11 +85,15 @@ class DeckedCollection(CardCollection):
         collection = yaml.load(file)
 
         for item in collection['doc'][1]['items']:
-            c = Card(gatherer_id=item[0]['id'], count=item[1]['r'])
-            self.cards.append(c)
+            if self.verbose > 2:
+                print item
+
+            gatherer_id = item[0]['id']
+            c = Card(gatherer_id=gatherer_id, count=item[1]['r'])
+            self.cards[gatherer_id] = c
 
         if self.verbose > 1:
-            for card in self.cards:
+            for gid, card in self.cards.iteritems():
                 print card
 
     def serialize(self, file):
@@ -92,7 +103,7 @@ class DeckedCollection(CardCollection):
                 {'items': None}
             ]}
 
-        collection['doc'][1]['items'] = [[{'id': card.gatherer_id}, {'r': card.count}] for card in self.cards]
+        collection['doc'][1]['items'] = [[{'id': card.gatherer_id}, {'r': card.count}] for gid, card in self.cards.iteritems()]
         yaml.dump(collection, file, indent=2)
 
 
